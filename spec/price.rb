@@ -1,9 +1,14 @@
 require 'spec_helper'
+require 'logger'
 
 describe Price do
+  before :all do
+    @logger = Logger.new STDOUT
+  end
+
   describe "with simple pricing" do
     before :each do
-      @p = Price.new(100)
+      @p = Price.new(@logger, 100)
     end
 
     (0..2).each do |i|
@@ -18,7 +23,7 @@ describe Price do
 
   describe "with more complex pricing" do
     before :each do
-      @p = Price.new(100, 3)
+      @p = Price.new(@logger, 100, 3)
     end
 
     it "will return proper price for 3 items" do
@@ -45,19 +50,19 @@ describe Price do
 
   describe "sale prices with freebies" do
     it "prices correctly when exact amount is bought" do
-      p = Price.new(100, 2, 1)
+      p = Price.new(@logger, 100, 2, 1)
       expect(p.quantity_required?).to eq(true)
       expect(p.price_for(3)).to eq(200)
     end
 
     it "throws an exception when too many are bought" do
-      p = Price.new(100, 2, 1)
+      p = Price.new(@logger, 100, 2, 1)
       expect(p.quantity_required?).to eq(true)
       lambda{p.price_for(4)}.should raise_error(/Invalid quantity supplied/)
     end
 
     it "throws an exception when too few are bought" do
-      p = Price.new(100, 2, 1)
+      p = Price.new(@logger, 100, 2, 1)
       expect(p.quantity_required?).to eq(true)
       lambda{p.price_for(1)}.should raise_error(/Invalid quantity supplied/)
     end

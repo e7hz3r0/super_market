@@ -5,11 +5,11 @@ class Product
   attr_accessor :regular_price, :sale_price
 
   # Constructor - takes a Price object describing this product's regular price
-  def initialize(regular_price)
-    #@logger = Logger.new(File.new('pricing.log'))
+  def initialize(logger, regular_price)
+    @logger = logger
     self.regular_price = regular_price
 
-    #@logger.info "Product created with regular price of #{regular_price}"
+    @logger.info "Product created with regular price of #{regular_price.description}"
   end
 
   # Purchase the given quantity of this product
@@ -24,25 +24,41 @@ class Product
   # - If you buy less the N+M, then all items are priced at the regular price, but no item's cost is removed
   # - If you buy more than N+M, the largest multiple of N+M is treated as above, and all remaining items that don't add to N+M are priced at the regular price
   def buy(quantity)
-    #@logger.info("Purchasing #{quantity} of product")
-    unless self.sale_price.nil? 
-      if (self.sale_price.quantity_required?)
+    msg = "Attempting to purchase #{quantity} items of product with regular price of '#{self.regular_price.description}.'"
+    msg += " On sale for #{self.sale_price.description}." if on_sale?
+    @logger.info msg
+
+    if on_sale?
+      @logger.info "Product is on-sale."
+
+      if self.sale_price.quantity_required?
         total_required_for_sale = self.sale_price.for_quantity + self.sale_price.quantity_for_free
 
-        if (quantity >= total_required_for_sale)
+        @logger.info "Sale price requires the purchase of at least #{total_required_for_sale} items."
+
+        if quantity >= total_required_for_sale
           sale_quantity = total_required_for_sale * (quantity / total_required_for_sale)
           reg_quantity = quantity.modulo(total_required_for_sale)
 
-          self.sale_price.price_for(sale_quantity) + self.regular_price.price_for(reg_quantity)
+          @logger.info "#{sale_quantity} will be priced at sale price. #{reg_quantity} will be priced at regular price."
+
+          cost =self.sale_price.price_for(sale_quantity) + self.regular_price.price_for(reg_quantity)
         else
-          self.regular_price.price_for(quantity)
+          @logger.info "Not enough items are being purchased to qualify for sale pricing, using regular price."
+          cost =self.regular_price.price_for(quantity)
         end
       else
-        self.sale_price.price_for(quantity)
+        @logger.info "Sale price is per-item."
+
+        cost =self.sale_price.price_for(quantity)
       end
     else
-      self.regular_price.price_for(quantity)
+      @logger.info "Product not on-sale. Using regular price."
+      cost =self.regular_price.price_for(quantity)
     end
+
+    @logger.info "Total cost for purchase of #{quantity} items is #{cost} cents."
+    cost
   end
 
   def on_sale?

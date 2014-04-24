@@ -13,11 +13,16 @@ class Price
   #   b) will each cost price_in_cents but if this number is purchase, you can get quantity_for_Free items at no charge
   # quantity_for_free - the number of items to get for free if for_quantity items are purchased. Defaults to 0
   # is_quantity_required - determines if for_quantity items MUST be bought to get the sale price
-  def initialize(price_in_cents, for_quantity = 1, quantity_for_free = 0, is_quantity_required = false)
+  def initialize(logger, price_in_cents, for_quantity = 1, quantity_for_free = 0, is_quantity_required = false)
     self.price_in_cents = price_in_cents
     self.for_quantity = for_quantity
     self.quantity_for_free = quantity_for_free
     @is_quantity_required = is_quantity_required
+    @logger = logger
+
+    msg = "Price created. " + self.description
+    
+    @logger.info msg
   end
 
   # Return the total price for the given quantity of items
@@ -26,16 +31,48 @@ class Price
     total_req_quantity = self.for_quantity + self.quantity_for_free
     price_per_unit = Float(self.price_in_cents) / Float(self.for_quantity) #default to the sale price for set # of items
 
-    if (quantity_required? && quantity.modulo(total_req_quantity) != 0)
-        raise "Invalid quantity supplied (#{quantity}) when specific quantity is required. Expected #{self.for_quantity + self.quantity_for_free}."
-    elsif (self.quantity_for_free > 0)
+    @logger.info "Requesting price for #{quantity}. Total required quantity to get sale price: #{total_req_quantity}"
+
+
+    if quantity_required? && quantity.modulo(total_req_quantity) != 0
+      error_msg = "Invalid quantity supplied (#{quantity}) when specific quantity is required. Expected #{self.for_quantity + self.quantity_for_free}."
+      @logger.info error_msg
+      raise error_msg
+    elsif self.quantity_for_free > 0
       price_per_unit = self.price_in_cents
+      @logger.info "Price is #{self.price_in_cents} each."
+    else
+      @logger.info "Price is #{self.price_in_cents} on #{self.for_quantity}."
     end
-    (price_per_unit * quantity).ceil - (quantity/total_req_quantity) * (price_per_unit * self.quantity_for_free).ceil
+
+    @logger.info "Price per unit is #{price_per_unit.round(2)}."
+    num_of_free_items = quantity/total_req_quantity
+
+    sub_total = (price_per_unit * quantity).ceil 
+    cost_of_free_items = num_of_free_items  * (price_per_unit * self.quantity_for_free).ceil
+    total_price = sub_total - cost_of_free_items
+
+    @logger.info "Cost of all (#{quantity}) items: #{sub_total} cents."
+    @logger.info "Cost of free (#{num_of_free_items}) items: #{cost_of_free_items} cents."
+    @logger.info "Total cost: #{sub_total} - #{cost_of_free_items} = #{total_price} cents"
+
+    total_price
   end
 
   # Returns whether a set number of items MUST be purchased in order to get the sale price
   def quantity_required?
     @is_quantity_required || self.quantity_for_free > 0
+  end
+
+  def description
+    msg = ""
+    if self.quantity_for_free > 0
+      msg += "Buy #{self.for_quantity} at #{self.price_in_cents} cents each, get #{self.quantity_for_free} free."
+    else
+      msg += "Buy #{self.for_quantity} for #{self.price_in_cents} cents."
+      msg += " Must buy #{self.for_quantity}." if @is_quantity_required
+    end
+
+    msg
   end
 end
